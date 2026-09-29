@@ -251,6 +251,7 @@ module.exports.requestTrace = requestTrace;
 // /echo endpoint removed: it exposed client ID and DID configuration.
 
 // Serve index.html as the home page
+// Changed to verifier.html bko 9/29/2016
 app.get('/', function (req, res) { 
   requestTrace( req );
   res.sendFile('public/verifier.html', {root: __dirname})
