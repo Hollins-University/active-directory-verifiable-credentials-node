@@ -201,7 +201,8 @@ var parser = bodyParser.urlencoded({ extended: false });
 app.set('trust proxy', 1);
 
 // Serve static files out of the /public directory
-app.use(express.static('public'))
+// app.use(express.static('public'))
+app.use(express.static('public', { index: false }))
 
 // Set up a simple server side session store.
 // The session store will briefly cache requests to facilitate QR code scanning.
