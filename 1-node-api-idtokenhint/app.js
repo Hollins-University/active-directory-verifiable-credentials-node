@@ -24,16 +24,16 @@ console.time("startup");
 ///////////////////////////////////////////////////////////////////////////////////////
 // config file can come from command line, env var or the default
 var config = {
-  azTenantId : process.env.azTenantId,
-  azClientId : process.env.azClientId,
-  azClientSecret: process.env.azClientSecret,
+  azTenantId : process.env.TENANT_ID || process.env.azTenantId,
+  azClientId : process.env.CLIENT_ID || process.env.azClientId,
+  azClientSecret: process.env.CLIENT_SECRET || process.env.azClientSecret,
   azCertificateName:  process.env.azCertificateName,
   azCertThumbprint:  process.env.azCertThumbprint,
   azCertificatePrivateKeyLocation:  process.env.azCertificatePrivateKeyLocation,
-  CredentialManifest: process.env.CredentialManifest,
-  DidAuthority: process.env.DidAuthority,
-  acceptedIssuers: process.env.acceptedIssuers,
-  CredentialType: process.env.CredentialType,
+  CredentialManifest: process.env.STUDENT_MANIFEST || process.env.CredentialManifest,
+  DidAuthority: process.env.ISSUER_AUTHORITY || process.env.DidAuthority,
+  acceptedIssuers: process.env.ISSUER_AUTHORITY || process.env.acceptedIssuers,
+  CredentialType: process.env.CREDENTIAL_TYPE || process.env.CredentialType,
   issuancePinCodeLength: process.env.issuancePinCodeLength,
   sourcePhotoClaimName: process.env.photoClaimName,
   matchConfidenceThreshold: process.env.matchConfidenceThreshold
