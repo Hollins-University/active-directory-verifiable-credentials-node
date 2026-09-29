@@ -1,89 +1,324 @@
 <!DOCTYPE html>
-<!-- Copyright (c) Microsoft Corporation. All rights reserved.
-     Licensed under the MIT License. -->
+<!-- Based on the Microsoft Verified ID sample (MIT License).
+     Modified by Hollins University for Temporary Access Pass self-service. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get a Temporary Access Pass | Hollins University</title>
+  <link rel="icon" href="favicon.png">
+  <style>
+    :root {
+      --green: #0b5d3b;
+      --green-dark: #07432a;
+      --ink: #1d2521;
+      --muted: #56615b;
+      --mist: #eef3f0;
+      --line: #cfdad4;
+      --error: #a1261c;
+      --paper: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main {
+      max-width: 34rem;
+      margin: 0 auto;
+      padding: 3rem 1.25rem 4rem;
+    }
+    .brand {
+      color: var(--green);
+      font-weight: 600;
+      margin: 0 0 2.5rem;
+    }
+    h1 {
+      font-size: 2rem;
+      line-height: 1.2;
+      margin: 0 0 1rem;
+      font-weight: 650;
+    }
+    p { margin: 0 0 1rem; }
+    .muted { color: var(--muted); }
+    button, .button {
+      display: inline-block;
+      font: inherit;
+      font-weight: 600;
+      color: #fff;
+      background: var(--green);
+      border: 0;
+      border-radius: 6px;
+      padding: 0.75rem 1.4rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button:hover, .button:hover { background: var(--green-dark); }
+    button.secondary {
+      color: var(--green);
+      background: transparent;
+      border: 2px solid var(--green);
+      padding: calc(0.75rem - 2px) calc(1.4rem - 2px);
+    }
+    button.secondary:hover { background: var(--mist); }
+    :focus-visible { outline: 3px solid #e0a800; outline-offset: 3px; }
+    [hidden] { display: none !important; }
 
-<html>
-    <head>
-        <meta charset="utf-8">
-        <title>Verifiable Credentials Request API Sample - Verifier</title>
-        <meta name="description" content="Verified Credentials Expert">
-        <meta name="author" content="Microsoft">
-        <link rel="stylesheet" href="styles.css">
-        <link rel="icon" href="favicon.png">
-        
-    </head>    
-    <body>
-        <div id="wrap">
-            <div style="text-align: center;">
-                <img src="VerifiedCredentialExpert-icon.png" height=200px; />
-                <h1 id="idTitle">Verifiable Credential Presentation</h1>
-                <h2 id="idSubTitle"></h2>
-                <h3 id="idSub3Title"></h3>
-                
-                <div id="message-wrapper" class="margin-bottom-75 margin-top-75" style="display: none">
-                    <i class="fas fa-user-check green icon-text-large margin-bottom-25"></i>
-                    <div id="message"></div>
-                     <br />
-                 </div>
-                  
-                <button type="button" id="verify-credential" class="button">Verify Credential</button>
-                <button type="button" id="check-result" class="button" style="display:none">Check Result</button>
-                <input type="checkbox" id="useFaceCheck" name="useFaceCheck" value="0" style="display:none">
-                <label for="useFaceCheck" id="labelFaceCheck" style="display:none"> Use FaceCheck</label><br>
-                <div id="qrcode" style="text-align:center;display:none"></div>
+    #qrcode {
+      display: inline-block;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin: 0.5rem 0 1rem;
+      background: #fff;
+    }
+    #status {
+      border-left: 4px solid var(--green);
+      padding: 0.25rem 0 0.25rem 1rem;
+      margin: 1.5rem 0;
+    }
+    #status.error { border-color: var(--error); color: var(--error); }
 
-            <script src="qrcode.min.js"></script>
-            <script src="verifiedid.requestservice.client.js"></script>
-            <script src="verifiedid.uihandler.js"></script>
-    
-            <script>
-                var qrcode = new QRCode("qrcode", { width: 150, height: 150 });
+    /* The pass is the one thing people must get right, so it gets the space. */
+    .pass {
+      margin: 1.5rem 0;
+      padding: 1.5rem;
+      background: var(--mist);
+      border-radius: 8px;
+    }
+    .pass-code {
+      display: block;
+      font: 600 clamp(1.6rem, 7vw, 2.4rem)/1.2 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      letter-spacing: 0.08em;
+      word-break: break-all;
+      margin: 0.25rem 0 1rem;
+      user-select: all;
+    }
+    .pass-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+    .pass-details { margin: 1rem 0 0; padding-left: 1.2rem; color: var(--muted); }
+    .pass-details li { margin-bottom: 0.25rem; }
+    .spinner {
+      display: inline-block; width: 1em; height: 1em; margin-right: 0.5em;
+      border: 2px solid var(--line); border-top-color: var(--green);
+      border-radius: 50%; vertical-align: -0.15em;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand">Hollins University</p>
 
-                document.getElementById('verify-credential').addEventListener('click', () => {
-                    if (true == document.getElementById('useFaceCheck').checked) {
-                        requestService.apiCreatePresentationRequest += '?faceCheck=1';
-                    }
-                    requestService.createPresentationRequest();
-                });
-    
-                document.getElementById('check-result').addEventListener('click', () => {
-                    requestService.pollRequestStatus(requestService.request.id);
-                });
-                   
-                fetch('api/verifier/get-presentation-details')
-                .then(function(response) {
-                    response.text()
-                    .catch(error => displayMessage(error) )
-                    .then(function(message) {
-                        var resp = JSON.parse(message);
-                        document.getElementById('idTitle').innerHTML = "Presentation of " + resp.type;
-                        document.getElementById('idSubTitle').innerHTML = "Accepted issuers: " + resp.acceptedIssuers;
-                        if ( resp.sourcePhotoClaimName ) {
-                            document.getElementById('useFaceCheck').style.display = "";
-                            document.getElementById('labelFaceCheck').style.display = "";
-                        }
-                    }).catch(error => { console.log(error.message); })
-                }).catch(error => { console.log(error.message); })
+    <!-- Start -->
+    <section id="view-start">
+      <h1>Get a Temporary Access Pass</h1>
+      <p>Lost your phone or locked out of your sign-in methods? Use your Hollins employee credential in Microsoft Authenticator to get a one-time pass, then set up your sign-in methods again.</p>
+      <p class="muted">You'll need Microsoft Authenticator with your Verified Employee credential. Authenticator will ask you to take a quick selfie to confirm it's you.</p>
+      <button type="button" id="btn-start">Start</button>
+    </section>
 
-                window.onload = function() {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    var urlTemplate = urlParams.get('template');
-                    if ( urlTemplate ) {
-                        fetch(urlTemplate, {method: 'GET' })
-                            .then(function(response) {
-                                response.text()
-                                .then(function(message) {
-                                    fetch('api/verifier/load-template', {
-                                        headers: { 'Content-Type': 'application/json' },
-                                        method: 'POST',
-                                        body: message
-                                        });
-                                    })
-                            });
-                    } 
-                }
-            </script>
+    <!-- Scan or open Authenticator -->
+    <section id="view-scan" hidden>
+      <h1>Open Microsoft Authenticator</h1>
+      <p id="scan-desktop">Scan this code with Authenticator on your phone.</p>
+      <div id="qrcode" aria-label="QR code for Microsoft Authenticator"></div>
+      <p id="scan-mobile" hidden>
+        <a class="button" id="deeplink" href="#">Open Authenticator</a>
+      </p>
+    </section>
 
+    <!-- Status line, shared by several steps -->
+    <div id="status" role="status" aria-live="polite" hidden></div>
+
+    <!-- The pass -->
+    <section id="view-pass" hidden>
+      <h1 id="pass-heading" tabindex="-1">Your Temporary Access Pass</h1>
+      <div class="pass">
+        <span class="pass-code" id="pass-code"></span>
+        <div class="pass-actions">
+          <button type="button" id="btn-copy">Copy pass</button>
+          <span id="copy-result" class="muted" aria-live="polite"></span>
         </div>
-    </body>
+        <ul class="pass-details">
+          <li id="pass-account"></li>
+          <li id="pass-expiry"></li>
+          <li>It works for one sign-in only.</li>
+        </ul>
+      </div>
+      <p><strong>This page shows the pass only once.</strong> Copy it or write it down before you leave.</p>
+      <p><a class="button" href="https://aka.ms/mysecurityinfo" target="_blank" rel="noopener">Set up sign-in methods</a></p>
+      <p class="muted">Sign in with your Hollins email, enter the pass when asked, then add Authenticator or another method. Hollins IT will never ask you for this pass.</p>
+    </section>
+
+    <!-- Try again -->
+    <p id="retry" hidden><button type="button" class="secondary" id="btn-retry">Try again</button></p>
+  </main>
+
+  <script src="qrcode.min.js"></script>
+  <script>
+    (function () {
+      var POLL_MS = 1500;
+      var TIMEOUT_MS = 5 * 60 * 1000;   // presentation requests expire after about 5 minutes
+      var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      var qrcode = new QRCode(document.getElementById('qrcode'), { width: 220, height: 220 });
+      var pollTimer = null;
+      var startedAt = 0;
+
+      function $(id) { return document.getElementById(id); }
+      function show(id, visible) { $(id).hidden = !visible; }
+
+      function setStatus(text, opts) {
+        opts = opts || {};
+        var el = $('status');
+        el.textContent = '';
+        el.className = opts.error ? 'error' : '';
+        if (opts.busy) {
+          var s = document.createElement('span');
+          s.className = 'spinner';
+          s.setAttribute('aria-hidden', 'true');
+          el.appendChild(s);
+        }
+        el.appendChild(document.createTextNode(text));
+        el.hidden = !text;
+      }
+
+      function stopPolling() {
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      }
+
+      function fail(text) {
+        stopPolling();
+        show('view-scan', false);
+        setStatus(text, { error: true });
+        show('retry', true);
+      }
+
+      function reset() {
+        stopPolling();
+        ['view-scan', 'view-pass', 'retry'].forEach(function (id) { show(id, false); });
+        setStatus('');
+        show('view-start', true);
+        $('btn-start').disabled = false;
+        $('pass-code').textContent = '';
+      }
+
+      async function start() {
+        $('btn-start').disabled = true;
+        setStatus('Creating your request...', { busy: true });
+        try {
+          var res = await fetch('api/verifier/presentation-request', { credentials: 'same-origin', cache: 'no-store' });
+          var data = await res.json();
+          if (!res.ok || !data.url) {
+            fail('The request could not be created. Try again, or contact the help desk if it keeps happening.');
+            if (data && data.error_description) console.log(data.error_description);
+            return;
+          }
+          show('view-start', false);
+          show('view-scan', true);
+          if (isMobile) {
+            show('scan-desktop', false);
+            show('qrcode', false);
+            show('scan-mobile', true);
+            $('deeplink').href = data.url;
+          } else {
+            qrcode.clear();
+            qrcode.makeCode(data.url);
+          }
+          setStatus('Waiting for Authenticator...', { busy: true });
+          startedAt = Date.now();
+          poll(data.id);
+        } catch (e) {
+          fail('The request could not be created. Check your connection and try again.');
+        }
+      }
+
+      function poll(id) {
+        pollTimer = setTimeout(async function () {
+          if (Date.now() - startedAt > TIMEOUT_MS) {
+            fail('The request timed out. Start again when you are ready.');
+            return;
+          }
+          try {
+            var res = await fetch('api/request-status?id=' + encodeURIComponent(id), { credentials: 'same-origin', cache: 'no-store' });
+            var data = await res.json();
+            if (!res.ok) {
+              fail(res.status === 403
+                ? 'This request was started in a different browser window. Start again here.'
+                : 'We lost track of this request. Start again.');
+              return;
+            }
+            handleStatus(id, data);
+          } catch (e) {
+            poll(id);   // brief network hiccup, keep trying until the timeout
+          }
+        }, POLL_MS);
+      }
+
+      function handleStatus(id, data) {
+        switch (data.status) {
+          case 'request_created':
+            poll(id);
+            break;
+          case 'request_retrieved':
+            show('view-scan', false);
+            setStatus(data.message || 'Follow the steps in Authenticator...', { busy: true });
+            poll(id);
+            break;
+          case 'presentation_verified':
+            stopPolling();
+            if (data.tap) {
+              showPass(data);
+            } else if (data.tapError) {
+              fail(data.tapError);
+            } else if (data.tapDelivered) {
+              fail('Your pass was already shown. If you did not save it, start again to get a new one.');
+            } else {
+              fail('Your credential was verified, but no pass was created. Contact the help desk.');
+            }
+            break;
+          case 'presentation_error':
+            fail('Authenticator could not share your credential. Make sure you are using your Hollins Verified Employee credential and try again.');
+            break;
+          default:
+            poll(id);
+        }
+      }
+
+      function showPass(data) {
+        show('view-scan', false);
+        setStatus('');
+        $('pass-code').textContent = data.tap;
+        $('pass-account').textContent = data.tapAccount ? 'For ' + data.tapAccount + '.' : '';
+        var mins = parseInt(data.tapMinutes, 10);
+        if (mins) {
+          var expires = new Date(Date.now() + mins * 60000);
+          $('pass-expiry').textContent = 'Expires at ' +
+            expires.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) +
+            ' (in ' + mins + ' minutes).';
+        }
+        show('view-pass', true);
+        $('pass-heading').focus();
+      }
+
+      $('btn-start').addEventListener('click', start);
+      $('btn-retry').addEventListener('click', reset);
+      $('btn-copy').addEventListener('click', async function () {
+        try {
+          await navigator.clipboard.writeText($('pass-code').textContent);
+          $('copy-result').textContent = 'Copied.';
+        } catch (e) {
+          $('copy-result').textContent = 'Copy did not work. Select the pass and copy it by hand.';
+        }
+      });
+
+      // Clear the pass from the page if the person leaves or the page is restored from cache.
+      window.addEventListener('pagehide', function () { $('pass-code').textContent = ''; });
+      window.addEventListener('pageshow', function (e) { if (e.persisted) reset(); });
+    })();
+  </script>
+</body>
 </html>
