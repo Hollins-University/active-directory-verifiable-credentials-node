@@ -253,7 +253,7 @@ module.exports.requestTrace = requestTrace;
 // Serve index.html as the home page
 app.get('/', function (req, res) { 
   requestTrace( req );
-  res.sendFile('public/index.html', {root: __dirname})
+  res.sendFile('public/verifier.html', {root: __dirname})
 })
 
 var verifier = require('./verifier.js');
