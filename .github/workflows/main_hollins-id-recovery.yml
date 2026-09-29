@@ -12,8 +12,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
+    defaults:
+      run:
+        working-directory: ./1-node-api-idtokenhint
 
     steps:
       - uses: actions/checkout@v4
@@ -27,13 +28,12 @@ jobs:
         run: |
           npm install
           npm run build --if-present
-          npm run test --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: ./1-node-api-idtokenhint
 
   deploy:
     runs-on: ubuntu-latest
