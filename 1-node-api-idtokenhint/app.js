@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
+// Modified by Hollins University: setting names, logging, session, and endpoint hardening.
 
 // Verifiable Credentials Sample
 
@@ -56,10 +57,24 @@ if ( !config.azCertificateName ) {
 if ( config.issuancePinCodeLength ) {
   config.issuancePinCodeLength = parseInt( config.issuancePinCodeLength );
 }
-console.log(config);
 if (!config.azTenantId) {
   throw new Error('azTenantId is missing in the config.')
 }
+if (!process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET is missing. Add a long random value in App Settings.')
+}
+// Log only non-secret settings, so we can see what loaded without exposing anything.
+console.log({
+  azTenantId: config.azTenantId,
+  azClientId: config.azClientId,
+  hasClientSecret: !!config.azClientSecret,
+  usesCertificate: config.azCertificateName !== '',
+  CredentialManifest: config.CredentialManifest,
+  DidAuthority: config.DidAuthority,
+  CredentialType: config.CredentialType,
+  sourcePhotoClaimName: config.sourcePhotoClaimName,
+  matchConfidenceThreshold: config.matchConfidenceThreshold
+});
 module.exports.config = config;
 
 config.apiKey = uuid.v4();
@@ -107,7 +122,7 @@ var msalConfig = {
               console.log(message);
           },
           piiLoggingEnabled: false,
-          logLevel: msal.LogLevel.Verbose,
+          logLevel: msal.LogLevel.Warning,
       }
   }
 };
@@ -115,7 +130,6 @@ var msalConfig = {
 // if certificateName is specified in config, then we change the MSAL config to use it
 if ( config.azCertificateName !== '') {
   const privateKeyData = fs.readFileSync(config.azCertificatePrivateKeyLocation, 'utf8');
-  console.log(config.azCertThumbprint);  
   const privateKeyObject = crypto.createPrivateKey({ key: privateKeyData, format: 'pem',    
     passphrase: config.azCertificateName.replace("CN=", "") // the passphrase is the appShortName (see Configure.ps1)    
   });
@@ -152,14 +166,14 @@ cca.acquireTokenByClientCredential(msalClientCredentialRequest).then((result) =>
   if ( !result.accessToken ) {
     throw new Error( `Could not acquire access token. Check your configuration for tenant ${config.azTenantId} and clientId ${config.azClientId}` );
   } else {
-    console.log( `access_token: ${result.accessToken}` ); 
+    console.log( 'Access token acquired for Verified ID.' ); 
     var accessToken = JSON.parse(base64url.decode(result.accessToken.split(".")[1]));
     if ( accessToken.roles != "VerifiableCredential.Create.All" ) {
       throw new Error( `Access token do not have the required scope 'VerifiableCredential.Create.All'.` );  
     }
   }
 }).catch((error) => {
-    console.log(error);
+    console.log(error.message);
     throw new Error( `Could not acquire access token. Check your configuration for tenant ${config.azTenantId} and clientId ${config.azClientId}` );
   });
 
@@ -178,31 +192,34 @@ fetch( `https://login.microsoftonline.com/${config.azTenantId}/v2.0/.well-known/
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Main Express server function
-// Note: You'll want to update port values for your setup.
 const app = express()
 const port = process.env.PORT || 8080;
 
 var parser = bodyParser.urlencoded({ extended: false });
 
+// App Service terminates HTTPS in front of the app. This lets secure cookies work.
+app.set('trust proxy', 1);
+
 // Serve static files out of the /public directory
 app.use(express.static('public'))
 
 // Set up a simple server side session store.
-// The session store will briefly cache issuance requests
-// to facilitate QR code scanning.
+// The session store will briefly cache requests to facilitate QR code scanning.
+// Note: memory sessions are lost on restart and are not shared across instances.
 var sessionStore = new session.MemoryStore();
 app.use(session({
-  secret: 'cookie-secret-key',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: true,
-  store: sessionStore
+  store: sessionStore,
+  cookie: {
+    secure: true,       // HTTPS only. Local testing over plain http will not keep a session.
+    httpOnly: true,
+    sameSite: 'lax'
+  }
 }))
 
-app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Authorization, Origin, X-Requested-With, Content-Type, Accept");
-  next();
-});
+// CORS removed: the page and API share one origin, so no cross-origin access is needed.
 
 module.exports.sessionStore = sessionStore;
 module.exports.app = app;
@@ -223,32 +240,15 @@ function getSessionDataWrapper( id ) {
 }
 module.exports.getSessionDataWrapper = getSessionDataWrapper;
 
+// Logs the request line and client IP only. Headers are not logged because they
+// include session cookies and the callback api-key.
 function requestTrace( req ) {
   var dateFormatted = new Date().toISOString().replace("T", " ");
-  var h1 = '//****************************************************************************';
-  console.log( `${h1}\n${dateFormatted}: ${req.method} ${req.protocol}://${req.headers["host"]}${req.originalUrl}` );
-  console.log( `Headers:`)
-  console.log(req.headers);
+  console.log( `${dateFormatted}: ${req.method} ${req.path} from ${req.headers['x-forwarded-for'] || req.ip}` );
 }
 module.exports.requestTrace = requestTrace;
 
-// echo function so you can test that you can reach your deployment
-app.get("/echo",
-    function (req, res) {
-        requestTrace( req );
-        res.status(200).json({
-            'date': new Date().toISOString(),
-            'api': req.protocol + '://' + req.hostname + req.originalUrl,
-            'Host': req.hostname,
-            'x-forwarded-for': req.headers['x-forwarded-for'],
-            'x-original-host': req.headers['x-original-host'],
-            'DidAuthority': config.DidAuthority,
-            'manifestURL': config.CredentialManifest,
-            'clientId': config.azClientId,
-            'configFile': configFile
-            });
-    }
-);
+// /echo endpoint removed: it exposed client ID and DID configuration.
 
 // Serve index.html as the home page
 app.get('/', function (req, res) { 
@@ -257,11 +257,13 @@ app.get('/', function (req, res) {
 })
 
 var verifier = require('./verifier.js');
-if ( config.CredentialManifest ) {
-  var issuer = require('./issuer.js');
-}
+// Issuance routes disabled: this app only verifies credentials and issues TAPs.
+// VerifiedEmployee credentials are issued through My Account.
+// if ( config.CredentialManifest ) {
+//   var issuer = require('./issuer.js');
+// }
 var callback = require('./callback.js');
 
 console.timeEnd("startup");
 // start server
-app.listen(port, () => console.log(`Example issuer app listening on port ${port}!`))
+app.listen(port, () => console.log(`Verified ID TAP app listening on port ${port}`))
