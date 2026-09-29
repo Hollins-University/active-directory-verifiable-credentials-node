@@ -36,7 +36,8 @@ async function graph(method, path, body) {
     method,
     headers: {
       Authorization: `Bearer ${token.accessToken}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Accept-Language': 'en-US'
     },
     body: body ? JSON.stringify(body) : undefined
   });
