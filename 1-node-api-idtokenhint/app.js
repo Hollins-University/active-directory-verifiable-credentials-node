@@ -30,7 +30,7 @@ var config = {
   azCertificateName:  process.env.azCertificateName,
   azCertThumbprint:  process.env.azCertThumbprint,
   azCertificatePrivateKeyLocation:  process.env.azCertificatePrivateKeyLocation,
-  CredentialManifest: process.env.STUDENT_MANIFEST || process.env.CredentialManifest,
+  CredentialManifest: process.env.EMPLOYEE_MANIFEST || process.env.CredentialManifest,
   DidAuthority: process.env.ISSUER_AUTHORITY || process.env.DidAuthority,
   acceptedIssuers: process.env.ISSUER_AUTHORITY || process.env.acceptedIssuers,
   CredentialType: process.env.CREDENTIAL_TYPE || process.env.CredentialType,
