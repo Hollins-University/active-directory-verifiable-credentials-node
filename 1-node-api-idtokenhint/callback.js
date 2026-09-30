@@ -61,7 +61,9 @@ async function finishPresentation( callbackEvent ) {
       result = {
         tapError: e instanceof Refusal
           ? e.message
-          : 'We could not create a pass. Please contact the help desk.'
+          : 'We could not create a pass. Please contact the help desk.',
+        // Short reference the help desk can match to the requestId in the logs.
+        tapRef: String(callbackEvent.requestId || '').slice(0, 8)
       };
     }
 

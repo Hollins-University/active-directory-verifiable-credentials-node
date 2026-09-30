@@ -88,10 +88,51 @@ presentationConfig.requestedCredentials[0].configuration.validation.faceCheck = 
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Simple in-memory rate limit on creating presentation requests. Each request
+// uses a Key Vault signing operation, so this keeps anyone from spamming Start.
+// Campus users share one public IP, so the per-IP limit is generous and the
+// per-session limit does most of the work.
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+const RATE_PER_SESSION = 3;
+const RATE_PER_IP = 20;
+const rateHits = new Map();
+
+function clientIp(req) {
+  // App Service adds the client address as the last X-Forwarded-For entry, with a port.
+  var xff = (req.headers['x-forwarded-for'] || '').split(',').pop().trim();
+  var ip = xff || req.socket.remoteAddress || 'unknown';
+  return /^\d+\.\d+\.\d+\.\d+:\d+$/.test(ip) ? ip.split(':')[0] : ip;
+}
+function overLimit(key, max) {
+  var now = Date.now();
+  var recent = (rateHits.get(key) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (recent.length >= max) {
+    rateHits.set(key, recent);
+    return true;
+  }
+  recent.push(now);
+  rateHits.set(key, recent);
+  return false;
+}
+setInterval(() => {
+  var now = Date.now();
+  for (const [key, times] of rateHits) {
+    if (!times.some((t) => now - t < RATE_WINDOW_MS)) rateHits.delete(key);
+  }
+}, RATE_WINDOW_MS).unref();
+
+///////////////////////////////////////////////////////////////////////////////////////
 // This method is called from the UI to initiate the presentation of the credential
 mainApp.app.get('/api/verifier/presentation-request', async (req, res) => {
   mainApp.requestTrace( req );
   var id = req.session.id;
+
+  var ip = clientIp( req );
+  if ( overLimit( 'session:' + id, RATE_PER_SESSION ) || overLimit( 'ip:' + ip, RATE_PER_IP ) ) {
+    console.log( JSON.stringify({ event: 'rate_limited', ip: ip, time: new Date().toISOString() }) );
+    res.status(429).json({ 'error': 'Too many attempts. Wait 10 minutes, then try again.' });
+    return;
+  }
 
   // get the Access Token
   var accessToken = "";

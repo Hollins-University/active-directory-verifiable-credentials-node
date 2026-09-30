@@ -14,7 +14,8 @@ const settings = {
   credentialType: process.env.CREDENTIAL_TYPE || process.env.CredentialType,
   minFaceMatch: Number(process.env.matchConfidenceThreshold || 70),
   lifetimeMinutes: Number(process.env.TAP_LIFETIME_MINUTES || 60),
-  blockGroupId: process.env.TAP_BLOCK_GROUP_ID || ''
+  allowGroupId: (process.env.TAP_ALLOW_GROUP_ID || '').toLowerCase(),
+  blockGroupId: (process.env.TAP_BLOCK_GROUP_ID || '').toLowerCase()
 };
 
 // A refusal is a normal "no" with a message that is safe to show the user.
@@ -78,20 +79,30 @@ function checkPresentation(p) {
   return { vc, upn, score };
 }
 
-// Blocks anyone with an active or PIM-eligible directory role (directly
-// assigned), plus members of an optional exclusion group.
-async function assertNotPrivileged(userId) {
+// Eligibility: the user must be in the allow group, must not be in the optional
+// block group, and must not hold an active or PIM-eligible directory role
+// (directly assigned). Group checks include nested membership.
+async function assertEligible(userId) {
+  if (!settings.allowGroupId) {
+    throw new Error('TAP_ALLOW_GROUP_ID is not set.');
+  }
+  const groupIds = [settings.allowGroupId];
+  if (settings.blockGroupId) groupIds.push(settings.blockGroupId);
+  const r = await graph('POST', `/users/${userId}/checkMemberGroups`, { groupIds });
+  const memberOf = r.value.map((id) => id.toLowerCase());
+
+  if (!memberOf.includes(settings.allowGroupId)) {
+    throw new Refusal('This account is not set up for self-service recovery. Please contact the help desk.');
+  }
+  if (settings.blockGroupId && memberOf.includes(settings.blockGroupId)) {
+    throw new Refusal('This account cannot use self-service. Please contact the help desk.');
+  }
+
   const filter = encodeURIComponent(`principalId eq '${userId}'`);
   const active = await graph('GET', `/roleManagement/directory/roleAssignments?$filter=${filter}&$select=id`);
   const eligible = await graph('GET', `/roleManagement/directory/roleEligibilitySchedules?$filter=${filter}&$select=id`);
   if (active.value.length || eligible.value.length) {
     throw new Refusal('Accounts with admin roles cannot use self-service. Please contact the help desk.');
-  }
-  if (settings.blockGroupId) {
-    const r = await graph('POST', `/users/${userId}/checkMemberGroups`, { groupIds: [settings.blockGroupId] });
-    if (r.value.length) {
-      throw new Refusal('This account cannot use self-service. Please contact the help desk.');
-    }
   }
 }
 
@@ -108,7 +119,7 @@ async function issueTap(presentation) {
     throw new Refusal('The credential does not match the account. Please contact the help desk.');
   }
 
-  await assertNotPrivileged(user.id);
+  await assertEligible(user.id);
 
   // A user can hold only one TAP, so remove any existing one first.
   const base = `/users/${user.id}/authentication/temporaryAccessPassMethods`;
