@@ -9,11 +9,11 @@
   <link rel="icon" href="favicon.png">
   <style>
     :root {
-      --green: #0b5d3b;
-      --green-dark: #07432a;
+      --green: #006f53;
+      --green-dark: #00553f;
       --ink: #1d2521;
       --muted: #56615b;
-      --mist: #eef3f0;
+      --mist: #e8f2ee;
       --line: #cfdad4;
       --error: #a1261c;
       --paper: #ffffff;
@@ -25,15 +25,33 @@
       color: var(--ink);
       font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
+    /* The logo carries its own green box, so the band uses the same green
+       and the logo sits in it seamlessly. */
+    .masthead {
+      background: var(--green);
+    }
+    .masthead-inner {
+      max-width: 34rem;
+      margin: 0 auto;
+      padding: 0.5rem 0.25rem;
+    }
+    .masthead img {
+      display: block;
+      width: 190px;
+      height: auto;
+    }
     main {
       max-width: 34rem;
       margin: 0 auto;
-      padding: 3rem 1.25rem 4rem;
+      padding: 2.75rem 1.25rem 3rem;
     }
-    .brand {
-      color: var(--green);
-      font-weight: 600;
-      margin: 0 0 2.5rem;
+    footer {
+      max-width: 34rem;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 3rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.9rem;
     }
     h1 {
       font-size: 2rem;
@@ -110,13 +128,18 @@
   </style>
 </head>
 <body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <img src="hollins-logo.png" alt="Hollins University" width="190" height="63">
+    </div>
+  </header>
+
   <main>
-    <p class="brand">Hollins University</p>
 
     <!-- Start -->
     <section id="view-start">
       <h1>Get a Temporary Access Pass</h1>
-      <p>Lost your phone or locked out of your sign-in methods? Use your Hollins employee credential in Microsoft Authenticator to get a one-time pass, then set up your sign-in methods again.</p>
+      <p>Locked out of your Hollins account? If you still have Microsoft Authenticator on your phone, use your Hollins employee credential to get a one-time pass, then set up your sign-in methods again.</p>
       <p class="muted">You'll need Microsoft Authenticator with your Verified Employee credential. Authenticator will ask you to take a quick selfie to confirm it's you.</p>
       <button type="button" id="btn-start">Start</button>
     </section>
@@ -157,6 +180,10 @@
     <!-- Try again -->
     <p id="retry" hidden><button type="button" class="secondary" id="btn-retry">Try again</button></p>
   </main>
+
+  <footer>
+    <p>Hollins University Information Technology. Lost your phone, or can't use this page? Contact the IT help desk and we'll help you get back in.</p>
+  </footer>
 
   <script src="qrcode.min.js"></script>
   <script>
