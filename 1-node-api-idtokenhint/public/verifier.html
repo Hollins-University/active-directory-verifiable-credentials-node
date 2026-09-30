@@ -211,6 +211,10 @@
         setStatus('Creating your request...', { busy: true });
         try {
           var res = await fetch('api/verifier/presentation-request', { credentials: 'same-origin', cache: 'no-store' });
+          if (res.status === 429) {
+            fail('Too many attempts. Wait 10 minutes, then try again.');
+            return;
+          }
           var data = await res.json();
           if (!res.ok || !data.url) {
             fail('The request could not be created. Try again, or contact the help desk if it keeps happening.');
@@ -273,7 +277,7 @@
             if (data.tap) {
               showPass(data);
             } else if (data.tapError) {
-              fail(data.tapError);
+              fail(data.tapError + (data.tapRef ? ' Reference: ' + data.tapRef + '.' : ''));
             } else if (data.tapDelivered) {
               fail('Your pass was already shown. If you did not save it, start again to get a new one.');
             } else {
