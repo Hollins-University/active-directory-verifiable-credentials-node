@@ -43,7 +43,12 @@ async function finishPresentation( callbackEvent ) {
         tapAccount: tap.userPrincipalName
       };
     } catch (e) {
-      audit('tap_refused', { requestId: callbackEvent.requestId, reason: e.message });
+      var vcData = callbackEvent.verifiedCredentialsData && callbackEvent.verifiedCredentialsData[0];
+      audit('tap_refused', {
+        requestId: callbackEvent.requestId,
+        reason: e.message,
+        photoQuality: (vcData && vcData.faceCheck && vcData.faceCheck.sourcePhotoQuality) || 'UNKNOWN'
+      });
       result = {
         tapError: e instanceof Refusal
           ? e.message

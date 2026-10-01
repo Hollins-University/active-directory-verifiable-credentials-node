@@ -71,12 +71,13 @@ function checkPresentation(p) {
     throw new Refusal('This credential has been revoked.');
   }
   const score = vc.faceCheck && vc.faceCheck.matchConfidenceScore;
+  const photoQuality = (vc.faceCheck && vc.faceCheck.sourcePhotoQuality) || 'UNKNOWN';
   if (typeof score !== 'number' || score < settings.minFaceMatch) {
     throw new Refusal('Face Check did not pass. Please try again or contact the help desk.');
   }
   const upn = vc.claims && vc.claims.revocationId;
   if (!upn) throw new Refusal('The credential is missing the account identifier.');
-  return { vc, upn, score };
+  return { vc, upn, score, photoQuality };
 }
 
 // Eligibility: the user must be in the allow group, must not be in the optional
@@ -107,7 +108,7 @@ async function assertEligible(userId) {
 }
 
 async function issueTap(presentation) {
-  const { vc, upn, score } = checkPresentation(presentation);
+  const { vc, upn, score, photoQuality } = checkPresentation(presentation);
 
   const user = await graph(
     'GET',
@@ -137,6 +138,7 @@ async function issueTap(presentation) {
     userId: user.id,
     requestId: presentation.requestId,
     faceMatch: score,
+    photoQuality,
     lifetimeMinutes: tap.lifetimeInMinutes,
     replacedExisting: existing.value.length > 0
   });
