@@ -5,7 +5,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Node packages
-var base64url = require('base64url')
 var crypto = require('crypto');
 var mainApp = require('./app.js');
 var { issueTap, Refusal, audit } = require('./tap.js');
@@ -30,19 +29,6 @@ function apiKeyMatches( provided ) {
   var given = Buffer.from( String(provided || '') );
   return given.length === expected.length && crypto.timingSafeEqual( given, expected );
 }
-function getJti( callbackEvent ) {
-  try {
-    var token = callbackEvent.receipt && callbackEvent.receipt.vp_token;
-    if ( !token ) return undefined;
-    if ( Array.isArray(token) ) token = token[0];
-    var vp = JSON.parse(base64url.decode(token.split(".")[1]));
-    var vc = JSON.parse(base64url.decode(vp.vp.verifiableCredential[0].split(".")[1]));
-    return vc.jti;
-  } catch {
-    return undefined;
-  }
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////
 // Runs after we have answered the callback. Issues the TAP (or records why not)
 // and stores the result for the browser to pick up once.
@@ -77,9 +63,8 @@ async function finishPresentation( callbackEvent ) {
     session.sessionData = {
       "status": "presentation_verified",
       "message": result.tap ? "Your Temporary Access Pass is ready" : "Presentation received",
-      "payload": callbackEvent.verifiedCredentialsData,
-      "subject": callbackEvent.subject,
-      "jti": getJti( callbackEvent ),
+      // Credential claims (including the photo) are deliberately not stored or
+      // sent to the browser. The page only needs the TAP result.
       ...result
     };
     await setSession( callbackEvent.state, session );
