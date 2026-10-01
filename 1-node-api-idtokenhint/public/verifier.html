@@ -125,6 +125,28 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+    .linkbutton {
+      background: none; border: 0; padding: 0; color: var(--green);
+      font-weight: 600; text-decoration: underline; text-underline-offset: 3px;
+    }
+    .linkbutton:hover { background: none; color: var(--green-dark); }
+    .start-row { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center; }
+    .privacy-note { font-size: 0.95rem; margin-top: 1.25rem; }
+    dialog {
+      max-width: 34rem; width: calc(100% - 2rem);
+      border: 0; border-radius: 10px; padding: 0;
+      color: var(--ink);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    }
+    dialog::backdrop { background: rgba(10, 30, 22, 0.55); }
+    .dialog-head { background: var(--green); color: #fff; padding: 1.1rem 1.5rem; }
+    .dialog-head h2 { margin: 0; font-size: 1.3rem; outline: none; }
+    .dialog-body { padding: 1.25rem 1.5rem 1.5rem; }
+    .dialog-body h3 { font-size: 1rem; margin: 1.1rem 0 0.3rem; }
+    .dialog-body h3:first-child { margin-top: 0; }
+    .dialog-body p { margin: 0 0 0.5rem; }
+    .dialog-foot { padding: 0 1.5rem 1.5rem; }
   </style>
 </head>
 <body>
@@ -139,15 +161,38 @@
     <!-- Start -->
     <section id="view-start">
       <h1>Get a Temporary Access Pass</h1>
-      <p>Locked out of your Hollins account? If you still have Microsoft Authenticator on your phone, use your Hollins employee Verified ID to get a one-time pass, then set up your sign-in methods again.</p>
-      <p class="muted">You'll need Microsoft Authenticator with your Verified Employee ID credential. Authenticator will ask you to take a quick selfie to confirm it's you.</p>
-      <button type="button" id="btn-start">Start</button>
+      <p>Locked out of your Hollins account? If you still have Microsoft Authenticator on your phone, use your Hollins employee credential to get a one-time pass, then set up your sign-in methods again.</p>
+      <p class="muted">You'll need Microsoft Authenticator with your Verified Employee credential. Authenticator will ask you to take a quick selfie to confirm it's you.</p>
+      <div class="start-row">
+        <button type="button" id="btn-start">Start</button>
+        <button type="button" class="linkbutton" id="btn-privacy">How Face Check uses your photo</button>
+      </div>
+      <p class="privacy-note muted">Your selfie is not stored by Microsoft and is never sent to Hollins.</p>
     </section>
+
+    <dialog id="privacy-dialog" aria-labelledby="privacy-title">
+      <div class="dialog-head"><h2 id="privacy-title" tabindex="-1" autofocus>How Face Check Uses Your Photo</h2></div>
+      <div class="dialog-body">
+        <h3>What happens</h3>
+        <p>Microsoft Authenticator takes a short live selfie to confirm a real person is present. It then compares your selfie with the photo in your Hollins credential, which is your Hollins profile photo.</p>
+        <h3>Who does the comparison</h3>
+        <p>Microsoft does, using Azure AI services that are part of Microsoft Entra Verified ID. Hollins does not run any facial recognition.</p>
+        <h3>What is kept</h3>
+        <p>Microsoft says that Authenticator, Verified ID, and the Azure AI services do not store or keep your selfie. Hollins never receives it.</p>
+        <h3>What Hollins receives</h3>
+        <p>A match score showing how closely your selfie matched your photo, plus the details already in your credential, like your name and Hollins email. We keep a record of the score, the time, and whether a pass was issued for security auditing. We don't use it for anything else.</p>
+        <h3>It's your choice</h3>
+        <p>If you'd rather not use Face Check, contact the IT help desk and we'll confirm your identity another way.</p>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" id="btn-privacy-close">Got it</button>
+      </div>
+    </dialog>
 
     <!-- Scan or open Authenticator -->
     <section id="view-scan" hidden>
       <h1>Open Microsoft Authenticator</h1>
-      <p id="scan-desktop">Scan this code with your phone.</p>
+      <p id="scan-desktop">Scan this code with Authenticator on your phone.</p>
       <div id="qrcode" aria-label="QR code for Microsoft Authenticator"></div>
       <p id="scan-mobile" hidden>
         <a class="button" id="deeplink" href="#">Open Authenticator</a>
@@ -174,7 +219,7 @@
       </div>
       <p><strong>This page shows the pass only once.</strong> Copy it or write it down before you leave.</p>
       <p><a class="button" href="https://aka.ms/mysecurityinfo" target="_blank" rel="noopener">Set up sign-in methods</a></p>
-      <p class="muted">Sign in with your Hollins email, enter the temporary access pass when asked, then setup a new passkey. Hollins IT will never ask you for your temporary access pass.</p>
+      <p class="muted">Sign in with your Hollins email, enter the pass when asked, then add Authenticator or another method. Hollins IT will never ask you for this pass.</p>
     </section>
 
     <!-- Try again -->
@@ -182,7 +227,7 @@
   </main>
 
   <footer>
-    <p>Hollins University Information Technology. Lost your phone, or can't use this page? <a href="https://helpdesk.hollins.edu">Contact the help desk</a> and we'll help you get back in.</p>
+    <p>Hollins University Information Technology. Lost your phone, or can't use this page? Contact the IT help desk and we'll help you get back in.</p>
   </footer>
 
   <script src="qrcode.min.js"></script>
@@ -336,6 +381,12 @@
       }
 
       $('btn-start').addEventListener('click', start);
+      $('btn-privacy').addEventListener('click', function () { $('privacy-dialog').showModal(); });
+      $('btn-privacy-close').addEventListener('click', function () { $('privacy-dialog').close(); });
+      // Close when the backdrop is clicked.
+      $('privacy-dialog').addEventListener('click', function (e) {
+        if (e.target === this) this.close();
+      });
       $('btn-retry').addEventListener('click', reset);
       $('btn-copy').addEventListener('click', async function () {
         try {
