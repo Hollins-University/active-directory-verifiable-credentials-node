@@ -53,6 +53,7 @@
       color: var(--muted);
       font-size: 0.9rem;
     }
+    footer a { color: var(--green); }
     h1 {
       font-size: 2rem;
       line-height: 1.2;
@@ -146,6 +147,7 @@
     .dialog-body h3 { font-size: 1rem; margin: 1.1rem 0 0.3rem; }
     .dialog-body h3:first-child { margin-top: 0; }
     .dialog-body p { margin: 0 0 0.5rem; }
+    .dialog-body a { color: var(--green); }
     .dialog-foot { padding: 0 1.5rem 1.5rem; }
   </style>
 </head>
@@ -182,7 +184,8 @@
         <h3>What Hollins receives</h3>
         <p>A match score showing how closely your selfie matched your photo, plus the details already in your credential, like your name and Hollins email. We keep a record of the score, the time, and whether a pass was issued for security auditing. We don't use it for anything else.</p>
         <h3>It's your choice</h3>
-        <p>If you'd rather not use Face Check, <a href="[https://helpdesk.hollins.edu](https://helpdesk.hollins.edu)">Contact the help desk</a> and we'll confirm your identity another way.</p>
+        <p>If you'd rather not use Face Check, <a href="https://helpdesk.hollins.edu" target="_blank" rel="noopener">contact the help desk</a> and we'll confirm your identity another way.</p>
+        <p><a href="https://learn.microsoft.com/entra/verified-id/using-facecheck" target="_blank" rel="noopener">Read Microsoft's Face Check documentation</a></p>
       </div>
       <div class="dialog-foot">
         <button type="button" id="btn-privacy-close">Got it</button>
@@ -219,7 +222,7 @@
       </div>
       <p><strong>This page shows the pass only once.</strong> Copy it or write it down before you leave.</p>
       <p><a class="button" href="https://aka.ms/mysecurityinfo" target="_blank" rel="noopener">Set up sign-in methods</a></p>
-      <p class="muted">Sign in with your Hollins email, enter the pass when asked, then setup Microsoft Authenticator and a valid passkey. Hollins IT will never ask you for this pass.</p>
+      <p class="muted">Sign in with your Hollins email, enter the pass when asked, then set up Microsoft Authenticator and a valid passkey. Hollins IT will never ask you for this pass.</p>
     </section>
 
     <!-- Try again -->
@@ -227,7 +230,7 @@
   </main>
 
   <footer>
-    <p>Hollins University Information Technology. Lost your phone, or can't use this page? <a href="[https://helpdesk.hollins.edu](https://helpdesk.hollins.edu)">Contact the help desk</a> and we'll help you get back in.</p>
+    <p>Hollins University Information Technology. Lost your phone, or can't use this page? <a href="https://helpdesk.hollins.edu" target="_blank" rel="noopener">Contact the help desk</a> and we'll help you get back in.</p>
   </footer>
 
   <script src="qrcode.min.js"></script>
@@ -357,7 +360,11 @@
             }
             break;
           case 'presentation_error':
-            fail('Authenticator could not share your credential. Make sure you are using your Hollins Verified Employee credential and try again.');
+            if (data.payload === 'claimValidationError' || /confidence/i.test(data.message || '')) {
+              fail('Face Check could not match your selfie to your Hollins photo. Try again in good, even light, facing the camera, without a hat or sunglasses. If your Hollins photo is out of date, contact the help desk.');
+            } else {
+              fail('Authenticator could not share your credential. Make sure you are using your Hollins Verified ID credential and try again.');
+            }
             break;
           default:
             poll(id);
